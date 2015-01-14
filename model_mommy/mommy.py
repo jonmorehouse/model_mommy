@@ -306,7 +306,10 @@ class Mommy(object):
                 else:
                     model_attrs[field.name] = self.generate_value(field)
             elif callable(model_attrs[field.name]):
-                model_attrs[field.name] = model_attrs[field.name]()
+                try:
+                    model_attrs[field.name] = model_attrs[field.name](model_attrs)
+                except TypeError:
+                    model_attrs[field.name] = model_attrs[field.name]()
             elif field.name in iterator_attrs:
                 try:
                     model_attrs[field.name] = advance_iterator(iterator_attrs[field.name])
