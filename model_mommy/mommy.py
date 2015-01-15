@@ -335,14 +335,15 @@ class Mommy(object):
         extra_attributes = dict([(k, attrs.pop(k)) for k in tuple(attrs.keys()) if not k in self.model._meta.get_all_field_names()])
         instance = self.model(**attrs)
 
-        # apply any extra attributes directly to the instance
-        self._handle_extra_attributes(instance, extra_attributes)
-
         # m2m only works for persisted instances
         if _commit:
             instance.save()
             self._handle_one_to_many(instance, one_to_many_keys)
             self._handle_m2m(instance)
+
+        # apply any extra attributes directly to the instance
+        self._handle_extra_attributes(instance, extra_attributes)
+
         return instance
 
     def _handle_extra_attributes(self, instance, attrs):
@@ -435,7 +436,10 @@ class Mommy(object):
         if field.name in self.rel_fields:
             generator_attrs.update(filter_rel_attrs(field.name, **self.rel_attrs))
 
-        return generator(**generator_attrs)
+        val = generator(**generator_attrs)
+        #return generator(**generator_attrs)
+
+        return val 
 
 
 def get_required_values(generator, field):
