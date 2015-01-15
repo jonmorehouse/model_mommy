@@ -58,38 +58,57 @@ foreign_key_required = [lambda field: ('model', field.related.parent_model)]
 
 MAX_MANY_QUANTITY = 5
 
-def make(model, _quantity=None, make_m2m=False, **attrs):
-    """
-    Creates a persisted instance from a given model its associated models.
-    It fill the fields with random values or you can specify
-    which fields you want to define its values by yourself.
-    """
-    mommy = Mommy(model, make_m2m=make_m2m)
-    if _quantity and (not isinstance(_quantity, int) or _quantity < 1):
-        raise InvalidQuantityException
+class Api(object):
 
-    if _quantity:
-        return [mommy.make(**attrs) for i in range(_quantity)]
-    else:
-        return mommy.make(**attrs)
+    @classmethod
+    def make(cls, model, _quantity=None, make_m2m=False, **attrs):
+        """
+        Creates a persisted instance from a given model its associated models.
+        It fill the fields with random values or you can specify
+        which fields you want to define its values by yourself.
+        """
+        mommy = Mommy(model, make_m2m=make_m2m)
+        if _quantity and (not isinstance(_quantity, int) or _quantity < 1):
+            raise InvalidQuantityException
+
+        if _quantity:
+            return [mommy.make(**attrs) for i in range(_quantity)]
+        else:
+            return mommy.make(**attrs)
 
 
-def prepare(model, _quantity=None, **attrs):
-    """
-    Creates BUT DOESN'T persist an instance from a given model its
-    associated models.
-    It fill the fields with random values or you can specify
-    which fields you want to define its values by yourself.
-    """
-    mommy = Mommy(model)
-    if _quantity and (not isinstance(_quantity, int) or _quantity < 1):
-        raise InvalidQuantityException
+    @classmethod
+    def prepare(cls, model, _quantity=None, **attrs):
+        """
+        Creates BUT DOESN'T persist an instance from a given model its
+        associated models.
+        It fill the fields with random values or you can specify
+        which fields you want to define its values by yourself.
+        """
+        mommy = Mommy(model)
+        if _quantity and (not isinstance(_quantity, int) or _quantity < 1):
+            raise InvalidQuantityException
 
-    if _quantity:
-        return [mommy.prepare(**attrs) for i in range(_quantity)]
-    else:
-        return mommy.prepare(**attrs)
+        if _quantity:
+            return [mommy.prepare(**attrs) for i in range(_quantity)]
+        else:
+            return mommy.prepare(**attrs)
 
+    @classmethod
+    def attributes(cls, model, _quantity=None, **attrs):
+        """
+        Creates a dictionary of parameters that is useful for creating an instance of the model.
+        Passing nested= True will return parameters for all relationships that are needed.
+        It fills the fieleds with random values or you can specify which fields you want to define its values by yourself
+        """
+        mommy = Mommy(model)
+
+    @classmethod
+    def _execute(cls, model, _quantity=None, make_m2m=False, **attrs):
+        pass
+
+make = Api.make
+prepare = Api.prepare
 
 def _recipe(name):
     app, recipe_name = name.rsplit('.', 1)
