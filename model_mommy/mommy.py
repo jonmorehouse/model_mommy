@@ -331,14 +331,28 @@ class Mommy(object):
             field = getattr(self.model, k, None)
             if isinstance(field, ForeignRelatedObjectsDescriptor):
                 one_to_many_keys[k] = attrs.pop(k)
-
+        
+        extra_attributes = dict([(k, attrs.pop(k)) for k in tuple(attrs.keys()) if not k in self.model._meta.get_all_field_names()])
         instance = self.model(**attrs)
+
+        # apply any extra attributes directly to the instance
+        self._handle_extra_attributes(instance, extra_attributes)
+
         # m2m only works for persisted instances
         if _commit:
             instance.save()
             self._handle_one_to_many(instance, one_to_many_keys)
             self._handle_m2m(instance)
         return instance
+
+    def _handle_extra_attributes(self, instance, attrs):
+        for k, v in attrs.items():
+            if callable(v):
+                try:
+                    v = v(instance) 
+                except TypeError:
+                    v = v()
+            setattr(instance, k, v)
 
     def _handle_one_to_many(self, instance, attrs):
         for k, v in attrs.items():
