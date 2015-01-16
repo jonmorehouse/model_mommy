@@ -59,6 +59,17 @@ class TestDefiningRecipes(TestCase):
         self.assertEqual(person.wanted_games_qtd, self.recipe_attrs['wanted_games_qtd'])
         self.assertEqual(person.id, None)
 
+    def test_flat_model_attrs_recipe_with_the_correct_attributes(self):
+        person = self.person_recipe.attrs()
+        self.assertEqual(person["name"], self.recipe_attrs['name'])
+        self.assertEqual(person["nickname"], self.recipe_attrs['nickname'])
+        self.assertEqual(person["age"], self.recipe_attrs['age'])
+        self.assertEqual(person["bio"], self.recipe_attrs['bio'])
+        self.assertEqual(person["birthday"], self.recipe_attrs['birthday'])
+        self.assertEqual(person["appointment"], self.recipe_attrs['appointment'])
+        self.assertEqual(person["blog"], self.recipe_attrs['blog'])
+        self.assertEqual(person["wanted_games_qtd"], self.recipe_attrs['wanted_games_qtd'])
+
     def test_accepts_callable(self):
         r = Recipe(DummyBlankFieldsModel,
             blank_char_field = lambda: 'callable!!'

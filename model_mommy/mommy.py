@@ -90,6 +90,16 @@ def prepare(model, _quantity=None, **attrs):
     else:
         return mommy.prepare(**attrs)
 
+def attrs(model, _quantity=None, **attrs):
+    mommy = Mommy(model)
+
+    if _quantity and (not isinstance(_quantity, int) or _quantity < 1):
+        raise InvalidQuantityException
+
+    if _quantity:
+        return [mommy.attrs(**attrs) for i in range(_quantity)]
+    else:
+        return mommy.attrs(**attrs)
 
 def _recipe(name):
     app, recipe_name = name.rsplit('.', 1)
@@ -102,6 +112,8 @@ def make_recipe(mommy_recipe_name, _quantity=None, **new_attrs):
 def prepare_recipe(mommy_recipe_name, _quantity=None, **new_attrs):
     return _recipe(mommy_recipe_name).prepare(_quantity=_quantity, **new_attrs)
 
+def attrs_recipe(mommy_recipe_name, _quantity=None, **new_attrs):
+    return _recipe(mommy_recipe_name).attrs(_quantity=_quantity, **new_attrs)
 
 def __m2m_generator(model, **attrs):
     return make(model, _quantity=MAX_MANY_QUANTITY, **attrs)
@@ -262,11 +274,14 @@ class Mommy(object):
         self.type_mapping[ForeignKey] = prepare
         self.type_mapping[OneToOneField] = prepare
         return self._make(commit=False, **attrs)
+    
+    def attrs(self, **attrs):
+        return self._make(commit=False, attrs_only= True, **attrs)
 
     def get_fields(self):
         return self.model._meta.fields + self.model._meta.many_to_many
 
-    def _make(self, commit=True, **attrs):
+    def _make(self, commit=True, attrs_only= False, **attrs):
         fill_in_optional = attrs.pop('_fill_optional', False)
         is_rel_field = lambda x: '__' in x
         iterator_attrs = dict((k, v) for k, v in attrs.items() if is_iterator(v))
@@ -297,7 +312,7 @@ class Mommy(object):
 
             if isinstance(field, ManyToManyField):
                 if field.name not in model_attrs:
-                    self.m2m_dict[field.name] = self.m2m_value(field)
+                    self.m2m_dict[field.name] = self.m2m_value(field, attrs_only= attrs_only)
                 else:
                     self.m2m_dict[field.name] = model_attrs.pop(field.name)
             elif field_value_not_defined:
@@ -316,9 +331,11 @@ class Mommy(object):
                 except StopIteration:
                     raise RecipeIteratorEmpty('{0} iterator is empty.'.format(field.name))
 
+        if attrs_only:
+            return model_attrs
         return self.instance(model_attrs, _commit=commit)
 
-    def m2m_value(self, field):
+    def m2m_value(self, field, attrs_only= False):
         if field.name in self.rel_fields:
             return self.generate_value(field)
         if not self.make_m2m or field.null:

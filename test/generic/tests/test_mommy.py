@@ -76,6 +76,13 @@ class MommyCreatesSimpleModel(TestCase):
 
         self.assertEqual(person.id, None)
 
+    def test_attrs_should_not_create_an_object(self):
+        person = mommy.attrs(Person)
+        self.assertIsInstance(person, dict)
+
+        self.assertEqual(Person.objects.all().count(), 0)
+        self.assertFalse("id" in person)
+
     def test_make_one_should_create_one_object(self):
         """
         make_one method is deprecated, so this test must be removed when the
@@ -136,6 +143,19 @@ class MommyRepeatedCreatesSimpleModel(TestCase):
     def test_prepare_raises_correct_exception_if_invalid_quantity(self):
         self.assertRaises(
             InvalidQuantityException, mommy.prepare, model=Person, _quantity="hi"
+        )
+        self.assertRaises(
+            InvalidQuantityException, mommy.prepare, model=Person, _quantity=-1
+        )
+
+    def test_attrs_should_create_objects_respecting_quantity_parameter(self):
+        people = mommy.attrs(Person, _quantity=5)
+        self.assertEqual(len(people), 5)
+        self.assertTrue(all("id" not in p for p in people))
+
+    def test_attrs_raises_correct_exception_if_invalid_quantity(self):
+        self.assertRaises(
+            InvalidQuantityException, mommy.attrs, model=Person, _quantity="hi"
         )
         self.assertRaises(
             InvalidQuantityException, mommy.prepare, model=Person, _quantity=-1
