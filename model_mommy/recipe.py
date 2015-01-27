@@ -33,7 +33,8 @@ class Recipe(object):
 
     def _mapping(self, new_attrs):
         rel_fields_attrs = dict((k, v) for k, v in new_attrs.items() if '__' in k)
-        new_attrs = dict((k, v) for k, v in new_attrs.items() if not '__' in k)
+        new_attrs = dict((k, v) for k, v in new_attrs.items() if not '__' in k) 
+
         mapping = self.attr_mapping.copy()
         for k, v in self.attr_mapping.items():
             # do not generate values if field value is provided
@@ -56,6 +57,7 @@ class Recipe(object):
                 mapping[k] = v.recipe.make(**recipe_attrs)
             elif isinstance(v, related):
                 mapping[k] = v.prepare()
+
         mapping.update(new_attrs)
         mapping.update(rel_fields_attrs)
         return mapping

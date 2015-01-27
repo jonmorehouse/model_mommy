@@ -91,8 +91,10 @@ def prepare(model, _quantity=None, **attrs):
         return mommy.prepare(**attrs)
 
 def attrs(model, _quantity=None, **attrs):
+    """
+    Returns a dictionary representation of all parameters needed for creating an object
+    """
     mommy = Mommy(model)
-
     if _quantity and (not isinstance(_quantity, int) or _quantity < 1):
         raise InvalidQuantityException
 
@@ -282,7 +284,18 @@ class Mommy(object):
         return self.model._meta.fields + self.model._meta.many_to_many
 
     def _make(self, commit=True, attrs_only= False, **attrs):
+        '''Builds the object according to the attributes listed.
+        attrs_only will build and return only a dict of all the attributes to build the object
+        _fill_optional = fill in all attributes, regardless of whether or not they are required 
+        _ignore = ignore a list of keys / attributes
+        _ignore_related = ignore all relationships
+        _extra_%s = build extra parameters, passing in either the current hash or the current object
+        '''
         fill_in_optional = attrs.pop('_fill_optional', False)
+        extra_attrs = dict((k, attrs.pop(k)) for k in attrs.keys() if '_extra_' in k)
+        ignore = attrs.pop('_ignore', [])
+        ignore_related = bool(attrs.pop('_ignore_related', False))
+
         is_rel_field = lambda x: '__' in x
         iterator_attrs = dict((k, v) for k, v in attrs.items() if is_iterator(v))
         model_attrs = dict((k, v) for k, v in attrs.items() if not is_rel_field(k))
@@ -290,6 +303,9 @@ class Mommy(object):
         self.rel_fields = [x.split('__')[0] for x in self.rel_attrs.keys() if is_rel_field(x)]
 
         for field in self.get_fields():
+            if field.name in ignore:
+                continue
+
             # check for fill optional argument
             if isinstance(fill_in_optional, bool):
                 field.fill_optional = fill_in_optional
@@ -318,6 +334,8 @@ class Mommy(object):
             elif field_value_not_defined:
                 if field.name not in self.rel_fields and (field.null and not field.fill_optional):
                     continue
+                elif isinstance(field, ForeignKey) and ignore_related:
+                    continue
                 else:
                     model_attrs[field.name] = self.generate_value(field)
             elif callable(model_attrs[field.name]):
@@ -331,9 +349,10 @@ class Mommy(object):
                 except StopIteration:
                     raise RecipeIteratorEmpty('{0} iterator is empty.'.format(field.name))
 
-        if attrs_only:
-            return model_attrs
-        return self.instance(model_attrs, _commit=commit)
+        return_obj = model_attrs if attrs_only else self.instance(model_attrs, _commit= commit)
+        self._handle_extra_attributes(return_obj, extra_attrs)
+        
+        return return_obj
 
     def m2m_value(self, field, attrs_only= False):
         if field.name in self.rel_fields:
@@ -349,28 +368,26 @@ class Mommy(object):
             if isinstance(field, ForeignRelatedObjectsDescriptor):
                 one_to_many_keys[k] = attrs.pop(k)
         
-        extra_attributes = dict([(k, attrs.pop(k)) for k in tuple(attrs.keys()) if not k in self.model._meta.get_all_field_names()])
         instance = self.model(**attrs)
-
         # m2m only works for persisted instances
         if _commit:
             instance.save()
             self._handle_one_to_many(instance, one_to_many_keys)
             self._handle_m2m(instance)
 
-        # apply any extra attributes directly to the instance
-        self._handle_extra_attributes(instance, extra_attributes)
-
         return instance
 
-    def _handle_extra_attributes(self, instance, attrs):
+    def _handle_extra_attributes(self, obj, attrs):
         for k, v in attrs.items():
             if callable(v):
                 try:
-                    v = v(instance) 
+                    v = v(obj) 
                 except TypeError:
                     v = v()
-            setattr(instance, k, v)
+            try:
+                obj[k] = v
+            except TypeError:
+                setattr(obj, k, v)
 
     def _handle_one_to_many(self, instance, attrs):
         for k, v in attrs.items():
@@ -453,11 +470,7 @@ class Mommy(object):
         if field.name in self.rel_fields:
             generator_attrs.update(filter_rel_attrs(field.name, **self.rel_attrs))
 
-        val = generator(**generator_attrs)
-        #return generator(**generator_attrs)
-
-        return val 
-
+        return generator(**generator_attrs)
 
 def get_required_values(generator, field):
     '''
@@ -477,7 +490,7 @@ def get_required_values(generator, field):
 
             elif isinstance(item, string_types):
                 rt[item] = getattr(field, item)
-
+            
             else:
                 raise ValueError("Required value '%s' is of wrong type. \
                                   Don't make mommy sad." % str(item))
