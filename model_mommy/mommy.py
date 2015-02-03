@@ -291,10 +291,18 @@ class Mommy(object):
         _ignore_related = ignore all relationships
         _extra_%s = build extra parameters, passing in either the current hash or the current object
         '''
+        fields = self.get_fields()
         fill_in_optional = attrs.pop('_fill_optional', False)
         ignore = attrs.pop('_ignore', [])
         ignore_related = bool(attrs.pop('_ignore_related', False))
-        [attrs.pop(k) for k in ignore]
+
+        # clean up any ignored attributes for the model
+        for k in ignore:
+            if k in fields:
+                fields.remove(k)
+            if k in attrs: 
+                attrs.pop(k)
+
         extra_attrs = dict((k, attrs.pop(k)) for k in attrs.keys() if '_extra_' in k)
 
         is_rel_field = lambda x: '__' in x
