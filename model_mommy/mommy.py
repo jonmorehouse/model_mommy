@@ -261,9 +261,12 @@ class Mommy(object):
         self.type_mapping = default_mapping.copy()
         generator_from_settings = getattr(settings, 'MOMMY_CUSTOM_FIELDS_GEN', {})
         for k, v in generator_from_settings.items():
-            path, field_name = k.rsplit('.', 1)
-            field_class = getattr(importlib.import_module(path), field_name)
-            self.type_mapping[field_class] = v
+            try:
+                path, field_name = k.rsplit('.', 1)
+                field_class = getattr(importlib.import_module(path), field_name)
+                self.type_mapping[field_class] = v
+            except ValueError as e:
+                self.type_mapping[k] = v
 
     def make(self, **attrs):
         '''Creates and persists an instance of the model
@@ -461,6 +464,8 @@ class Mommy(object):
         '''
         if field.name in self.attr_mapping:
             generator = self.attr_mapping[field.name]
+        elif field.name in self.type_mapping:
+            generator = self.type_mapping[field.name]
         elif getattr(field, 'choices'):
             generator = generators.gen_from_choices(field.choices)
         elif isinstance(field, ForeignKey) and isinstance(field.rel.to, ContentType):
