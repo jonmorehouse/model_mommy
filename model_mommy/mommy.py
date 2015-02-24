@@ -294,18 +294,20 @@ class Mommy(object):
         _ignore_related = ignore all relationships
         _extra_%s = build extra parameters, passing in either the current hash or the current object
         '''
-        fields = self.get_fields()
+        fields = set(self.get_fields())
         fill_in_optional = attrs.pop('_fill_optional', False)
         ignore = attrs.pop('_ignore', [])
         ignore_related = bool(attrs.pop('_ignore_related', False))
 
-        # clean up any ignored attributes for the model
+        # NOTE clean up attributes that should be ignored
         for k in ignore:
-            if k in fields:
-                fields.remove(k)
-            if k in attrs: 
+            removed_fields = [field for field in fields if field.name == k]
+            for field in removed_fields:
+                fields.remove(field)
+            if k in attrs:
                 attrs.pop(k)
 
+        # NOTE extra attributes are "side effects", these are passed in the object attribute
         extra_attrs = dict((k, attrs.pop(k)) for k in attrs.keys() if '_extra_' in k)
 
         is_rel_field = lambda x: '__' in x
@@ -314,10 +316,18 @@ class Mommy(object):
         self.rel_attrs = dict((k, v) for k, v in attrs.items() if is_rel_field(k))
         self.rel_fields = [x.split('__')[0] for x in self.rel_attrs.keys() if is_rel_field(x)]
 
-        for field in self.get_fields():
-            if field.name in ignore:
+        # NOTE decipher which fields should be generated and returned, based upon whether or not an object is being instantiated
+        if attrs_only:
+            fields = fields.union(set(model_attrs.keys()))
+
+        for field in fields:
+            # NOTE case where a nonfield is passed in, and should be reserved as is
+            if not issubclass(field.__class__, Field):
+                if callable(model_attrs[field]):
+                    model_attrs[field] = model_attrs[field]()
                 continue
 
+            # NOTE django Field based classes
             # check for fill optional argument
             if isinstance(fill_in_optional, bool):
                 field.fill_optional = fill_in_optional
